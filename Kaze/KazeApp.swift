@@ -79,6 +79,7 @@ enum AppPreferenceKey {
     static let hotkeyShortcut = "hotkeyShortcut"
     static let whisperModelVariant = "whisperModelVariant"
     static let fluidAudioModelState = "fluidAudioModelState"
+    static let notchMode = "notchMode"
 
     static let defaultEnhancementPrompt = """
         You are Kaze, a speech-to-text transcription assistant. Your only job is to \
@@ -156,6 +157,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         set {
             UserDefaults.standard.set(newValue.rawValue, forKey: AppPreferenceKey.hotkeyMode)
         }
+    }
+
+    private var notchModeEnabled: Bool {
+        UserDefaults.standard.bool(forKey: AppPreferenceKey.notchMode)
     }
 
     private var hotkeyModeObserver: NSObjectProtocol?
@@ -337,7 +342,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.processTranscription(text)
             }
             overlayState.bind(to: whisper)
-            overlayWindow.show(state: overlayState)
+            overlayWindow.show(state: overlayState, notchMode: notchModeEnabled)
             whisper.startRecording()
         } else if (engine == .parakeet || engine == .qwen), isEngineReady(engine) {
             let manager = engine == .parakeet ? parakeetModelManager : qwenModelManager
@@ -348,7 +353,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.processTranscription(text)
             }
             overlayState.bind(to: transcriber)
-            overlayWindow.show(state: overlayState)
+            overlayWindow.show(state: overlayState, notchMode: notchModeEnabled)
             transcriber.startRecording()
         } else {
             speechTranscriber.customWords = words
@@ -357,7 +362,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.processTranscription(text)
             }
             overlayState.bind(to: speechTranscriber)
-            overlayWindow.show(state: overlayState)
+            overlayWindow.show(state: overlayState, notchMode: notchModeEnabled)
             speechTranscriber.startRecording()
         }
     }

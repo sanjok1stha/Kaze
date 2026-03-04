@@ -101,6 +101,7 @@ private struct GeneralSettingsView: View {
     @AppStorage(AppPreferenceKey.enhancementMode) private var enhancementModeRaw = EnhancementMode.off.rawValue
     @AppStorage(AppPreferenceKey.enhancementSystemPrompt) private var systemPrompt = AppPreferenceKey.defaultEnhancementPrompt
     @AppStorage(AppPreferenceKey.hotkeyMode) private var hotkeyModeRaw = HotkeyMode.holdToTalk.rawValue
+    @AppStorage(AppPreferenceKey.notchMode) private var notchMode = false
     @State private var hotkeyShortcut = HotkeyShortcut.loadFromDefaults()
     @State private var isRecordingHotkey = false
     @State private var hotkeyMonitor: Any?
@@ -274,6 +275,23 @@ private struct GeneralSettingsView: View {
                             }
                         }
                     }
+                }
+
+                sectionDivider()
+
+                // MARK: Appearance
+                formRow("Notch mode:") {
+                    Toggle(isOn: $notchMode) {
+                        Text("Dynamic Island style")
+                    }
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                }
+
+                formRow("") {
+                    Text("Show the recording indicator at the top of the screen, like a Dynamic Island around the MacBook notch. When off, a floating pill appears at the bottom.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer(minLength: 20)
