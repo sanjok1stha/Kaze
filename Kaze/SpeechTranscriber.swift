@@ -1,7 +1,6 @@
 import Foundation
 import Speech
 import AVFoundation
-import CoreAudio
 import Combine
 
 @MainActor
@@ -14,19 +13,23 @@ class SpeechTranscriber: ObservableObject, TranscriberProtocol {
     private var speechRecognizer: SFSpeechRecognizer?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
-    private let audioEngine = AVAudioEngine()
+    private let microphoneCapture = MicrophoneCaptureSession()
 
     private var finalizeTimeoutTask: Task<Void, Never>?
     private var hasDeliveredFinalResult = false
 
     var onTranscriptionFinished: ((String) -> Void)?
-    var selectedDeviceID: AudioDeviceID?
+    var selectedDeviceUID: String?
 
     /// Custom words to hint the recognizer toward (names, abbreviations, etc.)
     var customWords: [String] = []
 
     init() {
         speechRecognizer = SFSpeechRecognizer(locale: Locale.current)
+    }
+
+    deinit {
+        microphoneCapture.stop()
     }
 
     func requestPermissions() async -> Bool {
@@ -84,10 +87,7 @@ class SpeechTranscriber: ObservableObject, TranscriberProtocol {
     }
 
     private func stopAudioCapture() {
-        if audioEngine.isRunning {
-            audioEngine.stop()
-        }
-        audioEngine.inputNode.removeTap(onBus: 0)
+        microphoneCapture.stop()
         recognitionRequest?.endAudio()
     }
 
@@ -115,11 +115,6 @@ class SpeechTranscriber: ObservableObject, TranscriberProtocol {
         recognitionTask = nil
         recognitionRequest = nil
 
-        if audioEngine.isRunning {
-            audioEngine.stop()
-            audioEngine.inputNode.removeTap(onBus: 0)
-        }
-
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.taskHint = .dictation
@@ -127,33 +122,15 @@ class SpeechTranscriber: ObservableObject, TranscriberProtocol {
             request.contextualStrings = customWords
         }
         recognitionRequest = request
-
-        let inputNode = audioEngine.inputNode
-        // Capture the request reference for thread-safe access in the audio tap callback
-        let capturedRequest = request
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: nil) { [weak self] buffer, _ in
-            // SFSpeechAudioBufferRecognitionRequest.append is thread-safe
-            capturedRequest.append(buffer)
-
-            guard let channelData = buffer.floatChannelData?[0] else { return }
-            let frameLength = Int(buffer.frameLength)
-            if frameLength == 0 { return }
-
-            var rms: Float = 0
-            for i in 0..<frameLength {
-                rms += channelData[i] * channelData[i]
-            }
-            rms = sqrt(rms / Float(frameLength))
-            let normalized = min(rms * 20, 1.0)
-
+        microphoneCapture.stop()
+        microphoneCapture.onAudioChunk = { [weak self, weak request] chunk in
+            request?.appendAudioSampleBuffer(chunk.sampleBuffer)
+            let normalized = Self.normalizedAudioLevel(from: chunk.monoSamples)
             Task { @MainActor [weak self] in
                 self?.audioLevel = normalized
             }
         }
-
-        applyInputDevice(selectedDeviceID, to: audioEngine)
-        audioEngine.prepare()
-        try audioEngine.start()
+        try microphoneCapture.start(deviceUID: selectedDeviceUID)
 
         recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
             guard let self else { return }
@@ -184,5 +161,16 @@ class SpeechTranscriber: ObservableObject, TranscriberProtocol {
                 }
             }
         }
+    }
+
+    private nonisolated static func normalizedAudioLevel(from samples: [Float]) -> Float {
+        guard !samples.isEmpty else { return 0 }
+
+        var rms: Float = 0
+        for sample in samples {
+            rms += sample * sample
+        }
+        rms = sqrt(rms / Float(samples.count))
+        return min(rms * 20, 1.0)
     }
 }

@@ -1,6 +1,5 @@
 import SwiftUI
 import AppKit
-import CoreAudio
 import Combine
 
 enum TranscriptionEngine: String, CaseIterable, Identifiable {
@@ -170,11 +169,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         UserDefaults.standard.bool(forKey: AppPreferenceKey.notchMode)
     }
 
-    /// Returns the Core Audio device ID for the user-selected microphone, or nil for system default.
-    private var selectedMicrophoneDeviceID: AudioDeviceID? {
+    /// Returns the AVCapture unique ID for the user-selected microphone, or nil for system default.
+    private var selectedMicrophoneUID: String? {
         let stored = UserDefaults.standard.string(forKey: AppPreferenceKey.selectedMicrophoneID) ?? ""
-        guard !stored.isEmpty, let id = UInt32(stored) else { return nil }
-        return id
+        guard !stored.isEmpty, isKnownAudioInputDevice(stored) else { return nil }
+        return stored
     }
 
     private var hotkeyModeObserver: NSObjectProtocol?
@@ -256,6 +255,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
            defaults.object(forKey: "aiEnhanceEnabled") != nil {
             let oldEnabled = defaults.bool(forKey: "aiEnhanceEnabled")
             enhancementMode = oldEnabled ? .appleIntelligence : .off
+        }
+
+        let storedMicrophone = defaults.string(forKey: AppPreferenceKey.selectedMicrophoneID) ?? ""
+        if !storedMicrophone.isEmpty, !isKnownAudioInputDevice(storedMicrophone) {
+            defaults.set("", forKey: AppPreferenceKey.selectedMicrophoneID)
         }
     }
 
@@ -460,14 +464,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Pass current custom words and selected microphone to the transcriber
         let words = customWordsManager.words
-        let micID = selectedMicrophoneDeviceID
+        let micUID = selectedMicrophoneUID
 
         // Use the appropriate transcriber
         if engine == .whisper, isEngineReady(.whisper) {
             let whisper = whisperTranscriber ?? WhisperTranscriber(modelManager: whisperModelManager)
             whisperTranscriber = whisper
             whisper.customWords = words
-            whisper.selectedDeviceID = micID
+            whisper.selectedDeviceUID = micUID
             whisper.onTranscriptionFinished = { [weak self] (text: String) in
                 guard let self else { return }
                 self.processTranscription(text)
@@ -479,7 +483,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let manager = engine == .parakeet ? parakeetModelManager : qwenModelManager
             let model: FluidAudioModel = engine == .parakeet ? .parakeet : .qwen
             let transcriber = getOrCreateFluidAudioTranscriber(model: model, manager: manager)
-            transcriber.selectedDeviceID = micID
+            transcriber.selectedDeviceUID = micUID
             transcriber.onTranscriptionFinished = { [weak self] (text: String) in
                 guard let self else { return }
                 self.processTranscription(text)
@@ -489,7 +493,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             transcriber.startRecording()
         } else {
             speechTranscriber.customWords = words
-            speechTranscriber.selectedDeviceID = micID
+            speechTranscriber.selectedDeviceUID = micUID
             speechTranscriber.onTranscriptionFinished = { [weak self] (text: String) in
                 guard let self else { return }
                 self.processTranscription(text)
