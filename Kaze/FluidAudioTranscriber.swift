@@ -1,6 +1,5 @@
 import Foundation
 import AVFoundation
-import CoreAudio
 import Combine
 import FluidAudio
 
@@ -312,12 +311,12 @@ class FluidAudioTranscriber: ObservableObject, TranscriberProtocol {
     @Published var isEnhancing = false
 
     var onTranscriptionFinished: ((String) -> Void)?
-    var selectedDeviceID: AudioDeviceID?
+    var selectedDeviceUID: String?
 
     let model: FluidAudioModel
     private let modelManager: FluidAudioModelManager
 
-    private let audioEngine = AVAudioEngine()
+    private let microphoneCapture = MicrophoneCaptureSession()
 
     /// Thread-safe audio buffer protected by a serial queue.
     private let bufferQueue = DispatchQueue(label: "com.kaze.fluidaudio.audioBuffer")
@@ -336,6 +335,7 @@ class FluidAudioTranscriber: ObservableObject, TranscriberProtocol {
 
     deinit {
         transcriptionTask?.cancel()
+        microphoneCapture.stop()
     }
 
     func requestPermissions() async -> Bool {
@@ -357,50 +357,31 @@ class FluidAudioTranscriber: ObservableObject, TranscriberProtocol {
         audioLevel = 0
 
         do {
-            let inputNode = audioEngine.inputNode
-            let recordingFormat = inputNode.outputFormat(forBus: 0)
-            let sampleRate = recordingFormat.sampleRate
-            let maxSamples = Int(sampleRate * Self.maxRecordingSeconds)
-
-            // Capture sample rate before recording starts
-            bufferQueue.sync { _inputSampleRate = sampleRate }
-
-            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
+            microphoneCapture.stop()
+            microphoneCapture.onAudioChunk = { [weak self] chunk in
                 guard let self else { return }
 
-                if let channelData = buffer.floatChannelData?[0] {
-                    let frameLength = Int(buffer.frameLength)
+                let frameLength = chunk.monoSamples.count
+                let maxSamples = Int(chunk.sampleRate * Self.maxRecordingSeconds)
+                self.bufferQueue.sync {
+                    self._inputSampleRate = chunk.sampleRate
+                    guard self._audioBuffer.count < maxSamples else { return }
+                    let remaining = maxSamples - self._audioBuffer.count
+                    let samplesToAppend = min(frameLength, remaining)
+                    self._audioBuffer.append(contentsOf: chunk.monoSamples.prefix(samplesToAppend))
+                }
 
-                    // Fix #1: Thread-safe buffer access
-                    self.bufferQueue.sync {
-                        guard self._audioBuffer.count < maxSamples else { return }
-                        let remaining = maxSamples - self._audioBuffer.count
-                        let samplesToAppend = min(frameLength, remaining)
-                        self._audioBuffer.append(contentsOf: UnsafeBufferPointer(start: channelData, count: samplesToAppend))
-                    }
-
-                    // Compute audio level for waveform visualization
-                    if frameLength > 0 {
-                        var rms: Float = 0
-                        for i in 0..<frameLength {
-                            rms += channelData[i] * channelData[i]
-                        }
-                        rms = sqrt(rms / Float(frameLength))
-                        let normalized = min(rms * 20, 1.0)
-                        Task { @MainActor [weak self] in
-                            self?.audioLevel = normalized
-                        }
-                    }
+                let normalized = Self.normalizedAudioLevel(from: chunk.monoSamples)
+                Task { @MainActor [weak self] in
+                    self?.audioLevel = normalized
                 }
             }
 
-            applyInputDevice(selectedDeviceID, to: audioEngine)
-            audioEngine.prepare()
-            try audioEngine.start()
+            try microphoneCapture.start(deviceUID: selectedDeviceUID)
             isRecording = true
         } catch {
             print("FluidAudioTranscriber: Failed to start recording: \(error)")
-            audioEngine.inputNode.removeTap(onBus: 0)
+            microphoneCapture.stop()
             isRecording = false
         }
     }
@@ -408,10 +389,7 @@ class FluidAudioTranscriber: ObservableObject, TranscriberProtocol {
     func stopRecording() {
         guard isRecording else { return }
 
-        if audioEngine.isRunning {
-            audioEngine.stop()
-        }
-        audioEngine.inputNode.removeTap(onBus: 0)
+        microphoneCapture.stop()
         isRecording = false
 
         // Fix #1: Thread-safe buffer extraction
@@ -485,5 +463,16 @@ class FluidAudioTranscriber: ObservableObject, TranscriberProtocol {
         try file.write(from: buffer)
 
         return tempURL
+    }
+
+    private nonisolated static func normalizedAudioLevel(from samples: [Float]) -> Float {
+        guard !samples.isEmpty else { return 0 }
+
+        var rms: Float = 0
+        for sample in samples {
+            rms += sample * sample
+        }
+        rms = sqrt(rms / Float(samples.count))
+        return min(rms * 20, 1.0)
     }
 }

@@ -1,10 +1,13 @@
 import Foundation
 import Combine
 import AVFoundation
-import CoreAudio
 
-/// Protocol that both SpeechTranscriber (Direct Dictation) and WhisperTranscriber conform to.
-/// Provides a unified interface for the AppDelegate to interact with either engine.
+struct AudioInputDevice: Equatable {
+    let uid: String
+    let name: String
+}
+
+/// Protocol that all transcription engines conform to.
 @MainActor
 protocol TranscriberProtocol: ObservableObject {
     var isRecording: Bool { get }
@@ -12,8 +15,8 @@ protocol TranscriberProtocol: ObservableObject {
     var transcribedText: String { get }
     var isEnhancing: Bool { get set }
 
-    /// The Core Audio device ID to use for recording, or `nil` for the system default.
-    var selectedDeviceID: AudioDeviceID? { get set }
+    /// The AVCapture device unique ID to use for recording, or `nil` for the current default input.
+    var selectedDeviceUID: String? { get set }
 
     var onTranscriptionFinished: ((String) -> Void)? { get set }
 
@@ -22,18 +25,18 @@ protocol TranscriberProtocol: ObservableObject {
     func stopRecording()
 }
 
-/// Sets the input device on an AVAudioEngine's input node before prepare/start.
-func applyInputDevice(_ deviceID: AudioDeviceID?, to engine: AVAudioEngine) {
-    guard let deviceID else { return }
-    var devID = deviceID
-    let inputNode = engine.inputNode
-    guard let audioUnit = inputNode.audioUnit else { return }
-    AudioUnitSetProperty(
-        audioUnit,
-        kAudioOutputUnitProperty_CurrentDevice,
-        kAudioUnitScope_Global,
-        0,
-        &devID,
-        UInt32(MemoryLayout<AudioDeviceID>.size)
+func listAudioInputDevices() -> [AudioInputDevice] {
+    let discoverySession = AVCaptureDevice.DiscoverySession(
+        deviceTypes: [.microphone],
+        mediaType: .audio,
+        position: .unspecified
     )
+
+    return discoverySession.devices
+        .map { AudioInputDevice(uid: $0.uniqueID, name: $0.localizedName) }
+        .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+}
+
+func isKnownAudioInputDevice(_ uid: String) -> Bool {
+    listAudioInputDevices().contains(where: { $0.uid == uid })
 }

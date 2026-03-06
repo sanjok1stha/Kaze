@@ -1,7 +1,6 @@
 import SwiftUI
 import AppKit
 import AVFoundation
-import CoreAudio
 import Combine
 import ServiceManagement
 
@@ -112,7 +111,7 @@ private struct GeneralSettingsView: View {
     @State private var isRecordingHotkey = false
     @State private var hotkeyMonitor: Any?
     @State private var recordedModifiersUnion: HotkeyShortcut.Modifiers = []
-    @State private var availableMicrophones: [(id: String, name: String)] = []
+    @State private var availableMicrophones: [AudioInputDevice] = []
     @StateObject private var audioDeviceObserver = AudioDeviceObserver()
 
     @ObservedObject var whisperModelManager: WhisperModelManager
@@ -125,6 +124,18 @@ private struct GeneralSettingsView: View {
 
     private var selectedHotkeyMode: HotkeyMode {
         HotkeyMode(rawValue: hotkeyModeRaw) ?? .holdToTalk
+    }
+
+    private var microphoneSelection: Binding<String> {
+        Binding(
+            get: {
+                guard !selectedMicrophoneID.isEmpty else { return "" }
+                return availableMicrophones.contains(where: { $0.uid == selectedMicrophoneID }) ? selectedMicrophoneID : ""
+            },
+            set: { newValue in
+                selectedMicrophoneID = newValue
+            }
+        )
     }
 
     private var appleIntelligenceAvailable: Bool {
@@ -186,10 +197,10 @@ private struct GeneralSettingsView: View {
 
             // MARK: Microphone
             formRow("Microphone:") {
-                Picker("Microphone", selection: $selectedMicrophoneID) {
+                Picker("Microphone", selection: microphoneSelection) {
                     Text("System Default").tag("")
-                    ForEach(availableMicrophones, id: \.id) { mic in
-                        Text(mic.name).tag(mic.id)
+                    ForEach(availableMicrophones, id: \.uid) { mic in
+                        Text(mic.name).tag(mic.uid)
                     }
                 }
                 .labelsHidden()
@@ -365,9 +376,9 @@ private struct GeneralSettingsView: View {
         }
         .onAppear {
             hotkeyShortcut = HotkeyShortcut.loadFromDefaults()
-            availableMicrophones = Self.listInputDevices()
+            refreshAvailableMicrophones()
             audioDeviceObserver.onChange = {
-                availableMicrophones = Self.listInputDevices()
+                refreshAvailableMicrophones()
             }
             audioDeviceObserver.start()
         }
@@ -375,68 +386,14 @@ private struct GeneralSettingsView: View {
 
     // MARK: - Audio Device Enumeration
 
-    private static func listInputDevices() -> [(id: String, name: String)] {
-        var propertyAddress = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDevices,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
+    private func refreshAvailableMicrophones() {
+        availableMicrophones = listAudioInputDevices()
 
-        var dataSize: UInt32 = 0
-        guard AudioObjectGetPropertyDataSize(
-            AudioObjectID(kAudioObjectSystemObject),
-            &propertyAddress, 0, nil, &dataSize
-        ) == noErr else { return [] }
+        guard !selectedMicrophoneID.isEmpty else { return }
 
-        let deviceCount = Int(dataSize) / MemoryLayout<AudioDeviceID>.size
-        var deviceIDs = [AudioDeviceID](repeating: 0, count: deviceCount)
-        guard AudioObjectGetPropertyData(
-            AudioObjectID(kAudioObjectSystemObject),
-            &propertyAddress, 0, nil, &dataSize, &deviceIDs
-        ) == noErr else { return [] }
-
-        var result: [(id: String, name: String)] = []
-
-        for deviceID in deviceIDs {
-            // Check if device has input channels
-            var inputAddress = AudioObjectPropertyAddress(
-                mSelector: kAudioDevicePropertyStreamConfiguration,
-                mScope: kAudioDevicePropertyScopeInput,
-                mElement: kAudioObjectPropertyElementMain
-            )
-
-            var inputSize: UInt32 = 0
-            guard AudioObjectGetPropertyDataSize(deviceID, &inputAddress, 0, nil, &inputSize) == noErr,
-                  inputSize > 0 else { continue }
-
-            let rawBuffer = UnsafeMutableRawPointer.allocate(
-                byteCount: Int(inputSize),
-                alignment: MemoryLayout<AudioBufferList>.alignment
-            )
-            defer { rawBuffer.deallocate() }
-
-            guard AudioObjectGetPropertyData(deviceID, &inputAddress, 0, nil, &inputSize, rawBuffer) == noErr else { continue }
-
-            let bufferListPtr = rawBuffer.assumingMemoryBound(to: AudioBufferList.self)
-            let bufferList = UnsafeMutableAudioBufferListPointer(bufferListPtr)
-            let inputChannels = bufferList.reduce(0) { $0 + Int($1.mNumberChannels) }
-            guard inputChannels > 0 else { continue }
-
-            // Get device name
-            var nameAddress = AudioObjectPropertyAddress(
-                mSelector: kAudioDevicePropertyDeviceNameCFString,
-                mScope: kAudioObjectPropertyScopeGlobal,
-                mElement: kAudioObjectPropertyElementMain
-            )
-
-            var name: CFString = "" as CFString
-            var nameSize = UInt32(MemoryLayout<CFString>.size)
-            guard AudioObjectGetPropertyData(deviceID, &nameAddress, 0, nil, &nameSize, &name) == noErr else { continue }
-
-            result.append((id: String(deviceID), name: name as String))
+        if !isKnownAudioInputDevice(selectedMicrophoneID) {
+            selectedMicrophoneID = ""
         }
-
-        return result
     }
 
     // MARK: - Whisper Model Status
@@ -952,47 +909,39 @@ private struct VocabularySettingsView: View {
 
 // MARK: - Audio Device Observer
 
-/// Observes Core Audio device list changes and calls `onChange` on the main thread.
+/// Observes microphone device changes and calls `onChange` on the main thread.
 class AudioDeviceObserver: ObservableObject {
-    @Published private var _tick = false
     var onChange: (() -> Void)?
-    private var listenerBlock: AudioObjectPropertyListenerBlock?
+    private var observers: [NSObjectProtocol] = []
 
     func start() {
-        guard listenerBlock == nil else { return }
-        let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
-            self?.onChange?()
-        }
-        var propertyAddress = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDevices,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-        let status = AudioObjectAddPropertyListenerBlock(
-            AudioObjectID(kAudioObjectSystemObject),
-            &propertyAddress,
-            DispatchQueue.main,
-            block
-        )
-        if status == noErr {
-            listenerBlock = block
-        }
+        guard observers.isEmpty else { return }
+
+        let center = NotificationCenter.default
+        observers = [
+            center.addObserver(
+                forName: AVCaptureDevice.wasConnectedNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.onChange?()
+            },
+            center.addObserver(
+                forName: AVCaptureDevice.wasDisconnectedNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.onChange?()
+            }
+        ]
     }
 
     func stop() {
-        guard let block = listenerBlock else { return }
-        var propertyAddress = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDevices,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-        AudioObjectRemovePropertyListenerBlock(
-            AudioObjectID(kAudioObjectSystemObject),
-            &propertyAddress,
-            DispatchQueue.main,
-            block
-        )
-        listenerBlock = nil
+        let center = NotificationCenter.default
+        for observer in observers {
+            center.removeObserver(observer)
+        }
+        observers.removeAll()
     }
 
     deinit {
